@@ -1,4 +1,10 @@
 import numpy as np
+import argparse
+import pandas as pd
+import json
+import os
+from tqdm import tqdm
+
 
 # Defining the problem
 class QAProblem:
@@ -6,30 +12,24 @@ class QAProblem:
         self.n = n
         self.distances = distances
         self.flows = flows
-
-    def trad_eval(self, solution):
-        cost = 0.
-        for i in range(self.n):
-            for j in range(self.n):
-                dist = self.distances[i][j]
-                flow = self.flows[solution[i]][solution[j]]
-                cost += flow * dist
-        return cost
-
-    def symm_eval(self, solution):
-        cost = 0
-        for i in range(self.n-1):
-            for j in range(i+1, self.n):
-                dist = self.distances[i][j]
-                flow = self.flows[solution[i]][solution[j]]
-                cost += 2*(flow * dist)
-        return cost
+        self.best_fit_record = []
+        self.best_fit = np.Inf
+        self.best_sol = []
 
     def __call__(self, solution):
         perm_flow = self.flows[solution,:][:,solution]
-        return int(np.multiply(self.distances, perm_flow).sum())
+        fit = int(np.multiply(self.distances, perm_flow).sum())
 
-    def create_from_file(path):
+        # Recording the best fit over each function call
+        if fit < self.best_fit:
+            self.best_fit = fit
+            self.best_sol = solution.tolist()
+        
+        self.best_fit_record.append(self.best_fit)
+
+        return fit
+
+    def buidl_from_file(path):
         with open(path, "r") as f:
             n = int(f.readline().strip())
             distances, flows = np.zeros((n, n), dtype=int), np.zeros((n, n), dtype=int)
@@ -39,10 +39,12 @@ class QAProblem:
             for j in range(n):
                 distances[j,:] = (list(map(int, f.readline().split())))
         return QAProblem(n, distances, flows)
+    
+    def reset_stats(self):
+        self.best_fit_record = []
+        self.best_fit = np.Inf
+        self.best_sol = []
 
-# Reading data
-
-qaProblem = QAProblem.create_from_file(path="tai256c.dat")
 
 def cross_order(parent1, parent2, low_rate=0.2, upp_rate=0.8):
     l = len(parent1)
@@ -130,87 +132,143 @@ class GAforQA:
             f = self.qa_problem(x)
             self.population[i,:] = x
             self.fitness[i] = f
-            
-
-    def run(self, max_runs, max_gens):
-
-        stats_fitness = np.zeros((max_gens, max_runs), dtype=int)
-
-        for r in range(max_runs):
-
-            np.random.seed(r)
-
-            self.initialize()
-
-            best_fit = np.min(self.fitness)
-
-            stats_fitness[0, r] = best_fit
-
-            print("{:d}\t{:d}\t{:d}\t{:d}".format(r+1, 1, best_fit, abs(best_fit-44759294)))
-
-            stag_times = 0
-
-            for gen in range(1, max_gens):
-
-                # Selecting pairs of parents
-
-                offspring = []
-                off_fitness = []
-
-                for i in range(self.pop_size//2):
-                    par1_idx, par2_idx = selection_tournament(self.fitness, perc_tourn=0.2)
-                    par1 = self.population[par1_idx]
-                    par2 = self.population[par2_idx]
-                    if(np.random.random() < self.cross_rate):
-                        off1, off2 = cross_order(par1, par2)
-                    else:
-                        off1, off2 = par1.copy(), par2.copy()
-
-                    off1 = mut_swap(off1, np.random.randint(low=0, high=2))
-                    off2 = mut_swap(off2, np.random.randint(low=0, high=2))
-
-                    fit1 = self.qa_problem(off1)
-                    fit2 = self.qa_problem(off2)
-
-                    offspring.append(off1)
-                    offspring.append(off2)
-                    off_fitness.append(fit1)
-                    off_fitness.append(fit2)
-
-                    
-
-                all_fits = np.append(self.fitness, off_fitness)
-                all_pop = np.append(self.population, offspring, axis=0)
-                
-                rep_indxs = replacement_best_n(all_fits, self.pop_size)
-
-                self.population = all_pop[rep_indxs]
-                self.fitness = all_fits[rep_indxs]
-
-                new_best_fit = self.fitness[0]
-
-                if new_best_fit == best_fit:
-                    stag_times += 1
-                else:
-                    stag_times = 0
-                    best_fit = self.fitness[0]
-
-                if stag_times > 10:
-                    repindx = np.random.randint(low=self.pop_size-3, high=self.pop_size)
-                    self.population[repindx] = np.random.permutation(self.qa_problem.n)
-                    self.fitness[repindx] = self.qa_problem(self.population[repindx])
-                    stag_times = 0
-
-                stats_fitness[gen, r] = best_fit
-
-                print("{:d}\t{:d}\t{:d}\t{:d}".format(r+1, gen+1, best_fit, abs(best_fit-44759294)))
+    
+    def __call__(self, max_gens):
         
-        return stats_fitness
+        self.initialize()
+        # best_fit = np.min(self.fitness)
+        # stag_times = 0
+        
+        for i in tqdm(range(2, max_gens+1)): 
+        # for gen in range(1, max_gens):
+            offspring = []
+            off_fitness = []
+
+            for i in range(self.pop_size//2):
+                
+                # Parent selection for crossover
+                par1_idx, par2_idx = selection_tournament(self.fitness, perc_tourn=0.2)
+                par1 = self.population[par1_idx]
+                par2 = self.population[par2_idx]
+                
+                # Crossover
+                if(np.random.random() < self.cross_rate):
+                    off1, off2 = cross_order(par1, par2)
+                else:
+                    off1, off2 = par1.copy(), par2.copy()
+
+                # Mutation
+                off1 = mut_swap(off1, np.random.randint(low=0, high=2))
+                off2 = mut_swap(off2, np.random.randint(low=0, high=2))
+
+                # Offspring fitness evaluation
+                fit1 = self.qa_problem(off1)
+                fit2 = self.qa_problem(off2)
+
+                # Adding the new individuals to the ofsspring pool
+                offspring.append(off1)
+                offspring.append(off2)
+                off_fitness.append(fit1)
+                off_fitness.append(fit2)
+
+                
+            # Create an extender pool of individuals (population + offspring)
+            all_fits = np.append(self.fitness, off_fitness)
+            all_pop = np.append(self.population, offspring, axis=0)
+            
+            # Replacement: select the top p_size fittest individuals            
+            rep_indxs = replacement_best_n(all_fits, self.pop_size)
+            self.population = all_pop[rep_indxs]
+            self.fitness = all_fits[rep_indxs]
+
+            """ 
+            new_best_fit = self.fitness[0]
+
+            if new_best_fit == best_fit:
+                stag_times += 1
+            else:
+                stag_times = 0
+                best_fit = self.fitness[0]
+
+            if stag_times > 10:
+                repindx = np.random.randint(low=self.pop_size-3, high=self.pop_size)
+                self.population[repindx] = np.random.permutation(self.qa_problem.n)
+                self.fitness[repindx] = self.qa_problem(self.population[repindx])
+                stag_times = 0 """
+
+
+            # print("{:d}\t{:d}\t{:d}\t{:d}".format(r+1, gen+1, best_fit, abs(best_fit-44759294)))
+
             
 
-ga_alg = GAforQA(qaProblem, pop_size=800)
 
-results = ga_alg.run(max_runs=10, max_gens=20000)
+parser = argparse.ArgumentParser(description='Run a GA for solving a QA problem.')
+parser.add_argument('algname', type=str, help='GA name')
+parser.add_argument('psize', type=int, help='an integer for setting the population size of the GA')
+parser.add_argument('fes', type=int, help='an integer indicating the maximum number of allowed calls to the fitness function')
+parser.add_argument('run', type=int, help='an integer corresponding to the execution number')
+args = parser.parse_args()
 
+exec_identity = f"(A:{args.algname}, PS:{args.psize}, MF:{args.fes}, R:{args.run})"
+
+print(f"Starting {exec_identity}")
+
+# Controlling the random seed. Set it as equal to the execution number.
+np.random.seed(args.run)
+
+# Computing the number of generations for the algorithm as a function of MAX_FES and psize
+
+MAX_GEN = args.fes // args.psize
+
+# Creating the problem instance
+qa_problem = QAProblem.buidl_from_file(path="tai256c.dat")
+
+# Creating the algorithm
+ga_alg = GAforQA(qa_problem=qa_problem, pop_size=args.psize)
+
+# Executing the algorithm
+ga_alg(max_gens=MAX_GEN)
+
+# Retrieving statistics and saving them in the archives
+
+file_name = f"{args.algname}_{args.psize}_{args.fes}_{args.run}"
+file_name = os.path.join("gaout", file_name)
+
+# Saving fitness evolution over time
+l = len(qa_problem.best_fit_record)
+df_fit = pd.DataFrame({
+    "ALG":np.repeat(args.algname, l),
+    "PSIZE":np.repeat(args.psize, l),
+    "MAXFES":np.repeat(args.fes, l),
+    "RUN":np.repeat(args.run, l),
+    "FES": list(range(1, l + 1)),
+    "BFIT":qa_problem.best_fit_record
+})
+
+df_fit.to_csv(f"{file_name}_evol.csv", index=False)
+
+
+
+# Saving the best solution
+
+df_bs = pd.DataFrame(
+    {
+    "ALG":[args.algname],
+    "PSIZE":[args.psize],
+    "MAXFES":[args.fes],
+    "RUN":[args.run],
+    "BFIT":[int(qa_problem.best_fit)]
+ }
+)
+
+bs_names = ["X" + str(i) for i in range(qa_problem.n)]
+
+bs_values = [[v for v in qa_problem.best_sol]]
+
+df_bs = pd.concat([df_bs, pd.DataFrame(bs_values, index=df_bs.index, columns=bs_names)], axis=1)
+
+df_bs.to_csv(f"{file_name}_best.csv", index=False)
+
+print(f"Finishing {exec_identity}. Best Fitness:{qa_problem.best_fit}")
 
 
