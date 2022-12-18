@@ -2,7 +2,7 @@ import argparse
 import numpy as np
 import pandas as pd
 from qap import QAProblem
-from gas import TraditionalGA
+from gas import TraditionalGA, BaldwinianGA, LamarckianGA
 import os
 
 parser = argparse.ArgumentParser(description='Run a GA for solving a QA problem.')
@@ -32,10 +32,11 @@ qa_problem = QAProblem.build_from_file(path="tai256c.dat")
 # Creating the algorithm
 if args.algname == "TRAD":
     ga_alg = TraditionalGA(qa_problem=qa_problem, pop_size=args.psize, crossover_rate=args.crossr, mutation_rate=args.mutr)
-elif args.algname == "LAM":
-    ga_alg = TraditionalGA(qa_problem=qa_problem, pop_size=args.psize)
 elif args.algname == "BAL":
-    ga_alg = TraditionalGA(qa_problem=qa_problem, pop_size=args.psize)
+    ga_alg = BaldwinianGA(qa_problem=qa_problem, pop_size=args.psize, crossover_rate=args.crossr, mutation_rate=args.mutr)
+    MAX_GEN = MAX_GEN // ga_alg.ls_depth
+elif args.algname == "LAM":
+    ga_alg = LamarckianGA(qa_problem=qa_problem, pop_size=args.psize)
 
 
 # Executing the algorithm

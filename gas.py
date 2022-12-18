@@ -47,23 +47,22 @@ class TraditionalGA:
     def evaluate(self, individual):
         return self.qa_problem(individual)
 
-
-
     def evolve(self):
-        
+        par1, par2 = self.select()
+        off1, off2 = self.crossover(par1, par2)
+        off1, off2 = self.mutate(off1, off2)
+
+        # Offspring fitness evaluation
+        fit1 = self.evaluate(off1)
+        fit2 = self.evaluate(off2)
+
+        return off1, fit1, off2, fit2
+
+    def evolve_population(self):
         offspring = []
         off_fitness = []
-
         for i in range(self.pop_size//2):
-            
-            par1, par2 = self.select()
-            off1, off2 = self.crossover(par1, par2)
-            off1, off2 = self.mutate(off1, off2)
-
-            # Offspring fitness evaluation
-            fit1 = self.evaluate(off1)
-            fit2 = self.evaluate(off2)
-
+            off1, fit1, off2, fit2 = self.evolve()
             # Adding the new individuals to the ofsspring pool
             offspring.append(off1)
             offspring.append(off2)
@@ -81,7 +80,7 @@ class TraditionalGA:
         for i in tqdm(range(1, max_gens)): 
         # for gen in range(1, max_gens):
             
-            offspring, off_fitness = self.evolve()
+            offspring, off_fitness = self.evolve_population()
 
             # Create an extender pool of individuals (population + offspring)
             all_fits = np.append(self.fitness, off_fitness)
@@ -102,8 +101,48 @@ class TraditionalGA:
 
 class BaldwinianGA(TraditionalGA):
     
-    def __init__(self, qa_problem: QAProblem, pop_size: int = 50, crossover_rate: float = 0.8, mutation_rate: float = 0.05, replace_fn=op.replace_fitness_based, ls_deep=10) -> None:
+    def __init__(self, qa_problem: QAProblem, pop_size: int = 50, crossover_rate: float = 0.8, mutation_rate: float = 0.05, replace_fn=op.replace_fitness_based, ls_depth=10) -> None:
         super().__init__(qa_problem, pop_size, crossover_rate, mutation_rate, replace_fn)
+        self.ls_depth = ls_depth
 
 
+    def evaluate(self, individual):
+        best_sol = individual.copy()
+        best_fit = super().evaluate(individual)
+
+        for d in range(self.ls_depth):
+            newind = op.max_flow_min_dist(parent=best_sol, qaprob=self.qa_problem, rep_perc=0.05)
+            newfit = super().evaluate(newind)
+
+            if newfit < best_fit:
+                best_sol = newind
+                best_fit = newfit
+
+        return best_fit
+
+
+class LamarckianGA(TraditionalGA):
     
+    def __init__(self, qa_problem: QAProblem, pop_size: int = 50, crossover_rate: float = 0.8, mutation_rate: float = 0.05, replace_fn=op.replace_fitness_based, ls_depth=10) -> None:
+        super().__init__(qa_problem, pop_size, crossover_rate, mutation_rate, replace_fn)
+        self.ls_depth = ls_depth
+
+
+    def evaluate(self, individual):
+        best_sol = individual.copy()
+        best_fit = super().evaluate(individual)
+
+        for d in range(self.ls_depth):
+            newind = op.max_flow_min_dist(parent=best_sol, qaprob=self.qa_problem, rep_perc=0.05)
+            newfit = super().evaluate(newind)
+
+            if newfit < best_fit:
+                best_sol = newind
+                best_fit = newfit
+        individual[:] = best_sol
+        return best_fit
+
+
+
+
+
