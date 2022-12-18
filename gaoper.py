@@ -1,5 +1,7 @@
 import numpy as np
 from qap import QAProblem
+from tqdm import tqdm
+import matplotlib.pyplot as plt
 
 def cross_order(parent1, parent2, low_rate=0.3, upp_rate=0.7):
     l = len(parent1)
@@ -75,23 +77,27 @@ def replacement_age_based(pop_fitness, sel_size:int):
     return range(sel_size, len(pop_fitness))
 
 
-def max_flow_min_dist(loc_i:int, fac_i:int, qaprob:QAProblem):
-    newsolution = np.zeros(qaprob.n, dtype=int) - 1
+def max_flow_min_dist(parent, qaprob:QAProblem, rep_perc=0.2):
+    # newsolution = np.zeros(qaprob.n, dtype=int) - 1
+
+    newsolution = parent.copy()
+    newsolution[np.random.random(len(parent)) < rep_perc] = -1
+
+    used_locs = np.argwhere(newsolution != -1).flatten()
     
-    start_fac = fac_i
-    start_loc = loc_i
+    start_loc = used_locs[0]
+    start_fac = newsolution[start_loc]
     
-    newsolution[loc_i] = fac_i
-    for i in range(1, qaprob.n):
+    for i in range(qaprob.n-len(used_locs)):
 
         # Decreasing sort by flow
         flows = qaprob.flows[:, start_fac]
-        fac_max_flow = np.flip(np.argsort(flows))
+        fac_max_flow = np.argsort(flows)
 
         avail_fac = np.setdiff1d(fac_max_flow, newsolution, assume_unique=True)
 
         dists = qaprob.distances[:, start_loc]
-        loc_min_dist = np.argsort(dists)
+        loc_min_dist = np.flip(np.argsort(dists))
         used_loc = np.argwhere(newsolution != -1).flatten()
         avail_loc = np.setdiff1d(loc_min_dist, used_loc, assume_unique=True)
 
@@ -105,25 +111,6 @@ def max_flow_min_dist(loc_i:int, fac_i:int, qaprob:QAProblem):
     
 
 
-if __name__ == '__main__':
-    qaprob = QAProblem.build_from_file("tai256c.dat")
-
-    np.random.seed(331)
-    fits = []
-    orig_fit = []
-    for j in range(4):
-        orig_sol = np.random.permutation(qaprob.n)
-        orig_fit.append(qaprob(orig_sol))
-        for i in range(256):
-            loc_i = i
-            fac_i = orig_sol[loc_i]
-            newsol = max_flow_min_dist(loc_i, fac_i, qaprob)
-            fits.append(qaprob(newsol))
-            print(f"{j}\t{i}\t{fits[-1]}")
-
-    print(f"Best:{sorted(fits)[0]}")
-
-    print(orig_fit)
     
 
     
