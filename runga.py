@@ -36,7 +36,8 @@ elif args.algname == "BAL":
     ga_alg = BaldwinianGA(qa_problem=qa_problem, pop_size=args.psize, crossover_rate=args.crossr, mutation_rate=args.mutr)
     MAX_GEN = MAX_GEN // ga_alg.ls_depth
 elif args.algname == "LAM":
-    ga_alg = LamarckianGA(qa_problem=qa_problem, pop_size=args.psize)
+    ga_alg = LamarckianGA(qa_problem=qa_problem, pop_size=args.psize, crossover_rate=args.crossr, mutation_rate=args.mutr)
+    MAX_GEN = MAX_GEN // ga_alg.ls_depth
 
 
 # Executing the algorithm
