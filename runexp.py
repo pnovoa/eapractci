@@ -10,7 +10,7 @@ def execute(process):
 
 if __name__ == '__main__':
 
-    nproc = 6
+    nproc = 4
     clean_output = True
     maxfes = 1000000
     if len(sys.argv) > 1:
@@ -29,9 +29,9 @@ if __name__ == '__main__':
     # Creating the tuple of all the processes
     python_script = ["runga.py"]
     alg_names = ['TRAD', 'BAL', 'LAM']
-    psizes = ['50', '100']
-    crossr = ['0.6','0.9']
-    mutr = ['0.01', '0.1']
+    psizes = ['100']
+    crossr = ['0.9']
+    mutr = ['0.01']
     max_fes = [str(maxfes)]
     runs = list(map(str, range(1, 4)))
 
