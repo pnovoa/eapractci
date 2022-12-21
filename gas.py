@@ -77,7 +77,7 @@ class TraditionalGA:
         # best_fit = np.min(self.fitness)
         # stag_times = 0
         
-        for i in tqdm(range(1, max_gens)): 
+        for i in tqdm(range(1, max_gens), postfix={"BF": "{:d}".format(self.qa_problem.best_fit)}): 
         # for gen in range(1, max_gens):
             
             offspring, off_fitness = self.evolve_population()
