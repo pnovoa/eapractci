@@ -108,6 +108,23 @@ def max_flow_min_dist(parent, qaprob:QAProblem, rep_perc=0.2):
 
     return newsolution
 
+
+
+def swap_if_better(parent, parfit, qaprob:QAProblem):
+    # TODO: Improve
+    rpos = np.random.permutation(qaprob.n)[0:2]
+    rfac = parent[rpos]
+    
+    newsol = parent.copy()
+
+    temp = newsol[rpos[0]]
+    newsol[rpos[0]] = newsol[rpos[1]]
+    newsol[rpos[1]] = newsol[temp]
+
+    
+
+
+
     
 
 

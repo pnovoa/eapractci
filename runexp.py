@@ -17,8 +17,8 @@ if __name__ == '__main__':
         nproc = int(sys.argv[1])
         if len(sys.argv) > 2:
             maxfes = int(sys.argv[2])
-        if len(sys.argv) > 3:
-            clean_output = bool(sys.argv[3])
+            if len(sys.argv) > 3:
+                clean_output = sys.argv[3].lower() == 'true'
 
     if clean_output:
         filelist = glob.glob(os.path.join("gaout", "*"))
@@ -29,8 +29,8 @@ if __name__ == '__main__':
     # Creating the tuple of all the processes
     python_script = ["runga.py"]
     alg_names = ['LAM']
-    psizes = ['100']
-    crossr = ['0.9']
+    psizes = ['50']
+    crossr = ['0.8']
     mutr = ['0.01']
     max_fes = [str(maxfes)]
     runs = list(map(str, range(1, 21)))

@@ -14,6 +14,7 @@ class TraditionalGA:
         self.population = np.empty((self.pop_size, self.qa_problem.n),  dtype=int)
         self.fitness = np.zeros(self.pop_size, dtype=int)
         self.replace = replace_fn
+        self.sorted_fit_indxs = []
 
     def initialize(self):
         for i in range(self.pop_size):
@@ -21,6 +22,8 @@ class TraditionalGA:
             f = self.qa_problem(x)
             self.population[i,:] = x
             self.fitness[i] = f
+        
+        self.sorted_fit_indxs = np.argsort(self.fitness)
 
     def select(self):
         # Parent selection for crossover
@@ -76,8 +79,10 @@ class TraditionalGA:
         self.initialize()
         # best_fit = np.min(self.fitness)
         # stag_times = 0
+
+        # best_age = 0
         
-        for i in tqdm(range(1, max_gens), postfix={"BF": "{:d}".format(self.qa_problem.best_fit)}): 
+        for i in tqdm(range(1, max_gens)): 
         # for gen in range(1, max_gens):
             
             offspring, off_fitness = self.evolve_population()
@@ -92,8 +97,28 @@ class TraditionalGA:
             self.population = all_pop[rep_indxs]
             self.fitness = all_fits[rep_indxs]
 
-            self.population = all_pop[rep_indxs]
-            self.fitness = all_fits[rep_indxs]
+            self.sorted_fit_indxs = np.argsort(self.fitness)
+            
+            # new_best_fit = sorted_fit_indxs[0]
+
+            # if new_best_fit < best_fit:
+            #     best_fit = new_best_fit
+            #     best_age = 0
+            # else:
+            #     best_age += 1
+            
+            # if best_age == 20:
+            #     rand_indx = sorted_fit_indxs[np.random.randint(1, self.pop_size)]
+            #     self.population[rand_indx] = np.random.permutation(self.qa_problem.n)
+            #     self.fitness[rand_indx] = self.qa_problem(self.population[rand_indx])
+                # best_age = 0
+
+            
+
+
+
+
+
             
 
             
@@ -128,12 +153,32 @@ class LamarckianGA(TraditionalGA):
         self.ls_depth = ls_depth
 
 
-    def evaluate(self, individual):
+    def evaluate_trad(self, individual):
         best_sol = individual.copy()
         best_fit = super().evaluate(individual)
 
         for d in range(self.ls_depth):
-            newind = op.max_flow_min_dist(parent=best_sol, qaprob=self.qa_problem, rep_perc=0.05)
+            newind = op.max_flow_min_dist(parent=best_sol, qaprob=self.qa_problem, rep_perc=0.03)
+            newfit = super().evaluate(newind)
+
+            if newfit < best_fit:
+                best_sol = newind
+                best_fit = newfit
+        individual[:] = best_sol
+        return best_fit
+
+
+    def evaluate(self, individual):
+        best_sol = individual.copy()
+        best_fit = super().evaluate(individual)
+
+        sorted_fits = self.fitness[self.sorted_fit_indxs]
+
+        if best_fit > sorted_fits[20]:
+            return best_fit
+
+        for d in range(self.ls_depth):
+            newind = op.max_flow_min_dist(parent=best_sol, qaprob=self.qa_problem, rep_perc=0.03)
             newfit = super().evaluate(newind)
 
             if newfit < best_fit:
