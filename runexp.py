@@ -12,7 +12,7 @@ if __name__ == '__main__':
 
     nproc = 5
     clean_output = True
-    maxfes = 10000000
+    maxfes = 10000
     if len(sys.argv) > 1:
         nproc = int(sys.argv[1])
         if len(sys.argv) > 2:
